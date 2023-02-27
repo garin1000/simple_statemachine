@@ -19,6 +19,8 @@ mod tests {
     struct StatemachineHandler {
         unexpected_handler_called: bool,
         guard_value: bool,
+        guard_state: RefCell<Option<TestStatemachine2State>>,
+        guard_event: RefCell<Option<TestStatemachine2Event>>,
         action_handler_called: bool,
         action_handler_old_state: Option<TestStatemachine3State>,
         action_handler_event: Option<TestStatemachine3Event>,
@@ -46,6 +48,8 @@ mod tests {
             StatemachineHandler {
                 unexpected_handler_called: false,
                 guard_value: false,
+                guard_state: RefCell::new(None),
+                guard_event: RefCell::new(None),
                 action_handler_called: false,
                 action_handler_old_state: None,
                 action_handler_event: None,
@@ -82,16 +86,27 @@ mod tests {
     }
 
     impl TestStatemachine2Handler for StatemachineHandler {
-        fn test_guard(&self) -> bool {
+        fn test_guard(&self,
+                      state: TestStatemachine2State,
+                      event: &TestStatemachine2Event,
+        ) -> bool {
+            *(self.guard_state.borrow_mut())=Some(state.clone());
+            *(self.guard_event.borrow_mut())=Some(event.clone());
             self.guard_value
         }
+        fn action_handler(&mut self,
+                          _old_state: TestStatemachine2State,
+                          _event: &TestStatemachine2Event,
+                          _new_state: TestStatemachine2State
+        ) {}
+
     }
 
     impl TestStatemachine3Handler for StatemachineHandler {
         fn action_handler(&mut self,
-                          old_state: &TestStatemachine3State,
+                          old_state: TestStatemachine3State,
                           event: &TestStatemachine3Event,
-                          new_state: &TestStatemachine3State
+                          new_state: TestStatemachine3State
         ) {
             self.action_handler_called = true;
             self.action_handler_old_state = Some(old_state.clone());
@@ -101,10 +116,7 @@ mod tests {
     }
 
     impl TestStatemachine4Handler for StatemachineHandler {
-        fn action_handler(&mut self,
-                          _old_state: &TestStatemachine4State,
-                          _event: &TestStatemachine4Event,
-                          _new_state: &TestStatemachine4State)
+        fn action_handler(&mut self)
         {
             self.action_handler_called = true;
             Weak::upgrade(&self.testsm4.clone().unwrap()).unwrap().borrow().event_from_handler
@@ -113,22 +125,22 @@ mod tests {
     }
 
     impl TestStatemachine5Handler for StatemachineHandler {
-        fn enter_initial_state(&mut self, old_state: &TestStatemachine5State, event: &TestStatemachine5Event,
-                               new_state: &TestStatemachine5State) {
+        fn enter_initial_state(&mut self, old_state: TestStatemachine5State, event: &TestStatemachine5Event,
+                               new_state: TestStatemachine5State) {
             self.initial_on_entry_called = true;
             self.initial_on_entry_old_state = Some(old_state.clone());
             self.initial_on_entry_event = Some(event.clone());
             self.initial_on_entry_new_state = Some(new_state.clone());
         }
-        fn exit_initial_state(&mut self, old_state: &TestStatemachine5State, event: &TestStatemachine5Event,
-                              new_state: &TestStatemachine5State) {
+        fn exit_initial_state(&mut self, old_state: TestStatemachine5State, event: &TestStatemachine5Event,
+                              new_state: TestStatemachine5State) {
             self.initial_on_exit_called = true;
             self.initial_on_exit_old_state = Some(old_state.clone());
             self.initial_on_exit_event = Some(event.clone());
             self.initial_on_exit_new_state = Some(new_state.clone());
         }
-        fn enter_second_state(&mut self, old_state: &TestStatemachine5State, event: &TestStatemachine5Event,
-                              new_state: &TestStatemachine5State) {
+        fn enter_second_state(&mut self, old_state: TestStatemachine5State, event: &TestStatemachine5Event,
+                              new_state: TestStatemachine5State) {
             self.second_on_entry_called = true;
             self.second_on_entry_old_state = Some(old_state.clone());
             self.second_on_entry_event = Some(event.clone());
@@ -137,11 +149,12 @@ mod tests {
     }
 
     impl TestStatemachine6Handler for StatemachineHandler {
+        fn initial_exit_handler(&mut self) {   }
+
+        fn second_entry_handler(&mut self) {   }
+
         fn action_with_payload(&mut self,
-            _old_state: &TestStatemachine6State,
-            _event: &TestStatemachine6Event,
             payload: &MyEventPayload,
-            _new_state: &TestStatemachine6State
         ){
             self.event_value=Some(payload.clone());
         }
@@ -204,12 +217,13 @@ mod tests {
 
 
     statemachine! {
+        [guard_with_transition_info,action_handler_with_transition_info]
         Name                TestStatemachine2
         InitialState        MyInitialState
 
         MyInitialState {
             MyFirstEvent[test_guard] => MyThirdState
-            MyFirstEvent => MyInitialState
+            MyFirstEvent == action_handler => MyInitialState
         }
         MyThirdState {}
     }
@@ -218,14 +232,24 @@ mod tests {
     fn guard_test() {
         let sm = TestStatemachine2::new(StatemachineHandler::new());
         assert_eq!(sm.get_state(), TestStatemachine2State::MyInitialState);
+        assert!((*(*sm.get_handler_ref()).guard_state.borrow()).is_none());
+        assert!((*(*sm.get_handler_ref()).guard_event.borrow()).is_none());
         sm.event(TestStatemachine2Event::MyFirstEvent);
         assert_eq!(sm.get_state(), TestStatemachine2State::MyInitialState);
+        assert!((*(*sm.get_handler_ref()).guard_state.borrow()).is_some());
+        assert_eq!((*(*sm.get_handler_ref()).guard_state.borrow()).clone().unwrap(),
+                TestStatemachine2State::MyInitialState);
+        assert!((*(*sm.get_handler_ref()).guard_event.borrow()).is_some());
+        assert_eq!((*(*sm.get_handler_ref()).guard_event.borrow()).clone().unwrap(),
+                   TestStatemachine2Event::MyFirstEvent);
         (*sm.get_handler_mut()).guard_value = true;
         sm.event(TestStatemachine2Event::MyFirstEvent);
         assert_eq!(sm.get_state(), TestStatemachine2State::MyThirdState);
     }
 
     statemachine! {
+        [action_handler_with_transition_info]
+
         Name                TestStatemachine3
         InitialState        MyInitialState
 
@@ -284,6 +308,8 @@ mod tests {
 
 
     statemachine! {
+        [entry_handler_with_transition_info,exit_handler_with_transition_info]
+
         Name                TestStatemachine5
         InitialState        MyInitialState
 
@@ -413,9 +439,11 @@ mod tests {
         EventPayload        MyEventPayload
 
         MyInitialState {
+            OnExit initial_exit_handler
             MySecondEvent == action_with_payload => MySecondState
         }
         MySecondState {
+            OnEntry second_entry_handler
         }
     }
 
