@@ -1,9 +1,24 @@
 [package]
-name = "statemachine"
-version = "0.3.0"
+name = "simple_statemachine"
+version = "1.0.0"
 edition = "2021"
+authors = ["Norbert Langermann"]
+description = "Statemachine defined via a simple and easy-to-read domain-specific language"
+repository = "https://github.com/garin1000/simple_statemachine"
+license = "MIT"
+keywords = ["statemachine","state","pattern","fsm","architecture"]
+categories = ["algorithms","network-programming","rust-patterns", "parsing", "data-structured"]
+exclude = [".*","*.iml"]
+
+
+[lib]
+name = "simple_statemachine"
+path = "src/lib.rs"
+proc-macro=true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-statemachine_proc_macros = { path = "statemachine_proc_macros" }
+syn = { version = "2.0", features = ["extra-traits"] }
+quote="1.0"
+proc-macro2 = "1.0"

@@ -1,4 +1,4 @@
 /target
 /Cargo.lock
-/statemachine_proc_macros/target
-/statemachine_proc_macros/Cargo.lock
+/simple_statemachine/target
+/simple_statemachine/Cargo.lock

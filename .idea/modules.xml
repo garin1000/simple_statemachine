@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/statemachine.iml" filepath="$PROJECT_DIR$/statemachine.iml" />
+      <module fileurl="file://$PROJECT_DIR$/simple_statemachine.iml" filepath="$PROJECT_DIR$/simple_statemachine.iml" />
     </modules>
   </component>
 </project>
